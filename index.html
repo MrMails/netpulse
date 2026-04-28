@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetPulse — Network Diagnostic Tool</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@700&display=swap');
+        
+        :root { 
+            --c-ping: #e86100;    
+            --c-avg: #0d6efd;     
+            --c-jitter: #6f42c1;  
+            --c-loss: #dc3545;    
+            --bg: #f4f7f6; 
+            --text-main: #172b4d; 
+            --text-header: #5e6c84;
+            --text-stage: #0052cc;
+            --border: #dfe1e6;
+            --card-bg: #fff; 
+            --dark-bg: #1e1e1e; 
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text-main); display: flex; justify-content: center; padding: 20px; }
+        .container { background: var(--card-bg); padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); width: 100%; max-width: 1000px; position: relative; }
+        
+        h2 { color: var(--c-ping); margin-top: 0; display: flex; align-items: center; justify-content: space-between; }
+        .timer-badge { font-size: 0.6em; color: var(--text-main); background: #e9eff7; padding: 4px 12px; border-radius: 6px; border: 1px solid var(--border); display: none; font-family: monospace; font-weight: normal; }
+
+        .input-group { margin-bottom: 20px; display: flex; flex-direction: column; gap: 8px; position: relative; }
+        .input-group label { font-size: 0.9em; font-weight: bold; color: #555; display: flex; justify-content: space-between; }
+        .ip-resolve { color: #0d6efd; font-weight: normal; font-size: 0.9em; background: #e9ecef; padding: 2px 8px; border-radius: 4px; display: none; }
+        input[type="text"] { padding: 12px 15px; border-radius: 6px; border: 1px solid var(--border); font-size: 1em; width: 100%; box-sizing: border-box; outline: none; transition: 0.2s; font-family: monospace; }
+        input[type="text"]:focus { border-color: var(--c-ping); box-shadow: 0 0 0 3px rgba(232, 97, 0, 0.2); }
+        input[disabled], select[disabled] { background: #eee; color: #888; cursor: not-allowed; }
+        
+        .controls { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+        select { flex-grow: 1; min-width: 200px; padding: 12px 15px; border-radius: 6px; border: 1px solid var(--border); font-size: 1em; cursor: pointer; }
+        button { border: none; cursor: pointer; font-weight: bold; transition: 0.2s; padding: 12px 25px; border-radius: 6px; font-size: 1em; }
+        #start-btn { background: var(--c-ping); color: white; flex-grow: 2; }
+        #start-btn:hover { background: #cc5500; }
+        #stop-btn { background: var(--c-loss); color: white; display: none; flex-grow: 1; }
+        #stop-btn:hover { background: #bb2d3b; }
+        
+        #save-html-btn { background: #28a745; color: white; display: none; align-items: center; justify-content: center; gap: 6px; padding: 12px 20px; flex-grow: 1; }
+        #save-html-btn:hover { background: #218838; }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: #f9f9f9; padding: 15px; border-radius: 8px; border-left: 5px solid #ddd; text-align: center; position: relative; transition: opacity 0.3s; }
+        
+        .card-ping { border-left-color: var(--c-ping); } .card-ping .stat-value { color: var(--c-ping); }
+        .card-avg { border-left-color: var(--c-avg); } .card-avg .stat-value { color: var(--c-avg); }
+        .card-jitter { border-left-color: var(--c-jitter); } .card-jitter .stat-value { color: var(--c-jitter); }
+        .card-loss { border-left-color: var(--c-loss); } .card-loss .stat-value { color: var(--c-loss); }
+
+        .stat-label { font-size: 0.75em; text-transform: uppercase; color: #888; margin-bottom: 5px; font-weight: bold; display: flex; justify-content: center; align-items: center; gap: 6px; }
+        .stat-value { font-size: 1.5em; font-weight: bold; color: var(--text-main); }
+        .sub-stats { font-size: 0.75em; color: #666; margin-top: 5px; }
+
+        .info-icon { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; background: #bbb; color: #fff; font-size: 10px; cursor: help; position: relative; }
+        .info-icon:hover { background: #888; }
+        .info-icon::after { content: attr(data-tooltip); position: absolute; bottom: 150%; left: 50%; transform: translateX(-50%); width: 200px; background: #333; color: #fff; padding: 10px; border-radius: 6px; font-size: 12px; font-weight: normal; text-transform: none; text-align: center; opacity: 0; visibility: hidden; transition: 0.2s; pointer-events: none; z-index: 10; box-shadow: 0 4px 10px rgba(0,0,0,0.2); line-height: 1.4; }
+        .info-icon::before { content: ''; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); border-width: 5px; border-style: solid; border-color: #333 transparent transparent transparent; opacity: 0; visibility: hidden; transition: 0.2s; z-index: 10; }
+        .info-icon:hover::after, .info-icon:hover::before { opacity: 1; visibility: visible; }
+
+        .eye-toggle { position: absolute; bottom: 8px; right: 8px; width: 18px; height: 18px; cursor: pointer; fill: #aaa; transition: 0.2s; }
+        .eye-toggle:hover { fill: #333; }
+        .eye-toggle.hidden { fill: #ddd; }
+        .card-disabled { opacity: 0.5; }
+
+        .chart-wrapper { width: 100%; height: 320px; margin-top: 10px; background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 10px; box-sizing: border-box; }
+        
+        .log-box { font-size: 0.85em; height: 120px; overflow-y: auto; background: var(--dark-bg); color: #a5d6a7; padding: 12px; border-radius: 6px; font-family: 'Consolas', monospace; border-left: 4px solid #4caf50; margin-top: 15px; }
+        .log-box .err { color: #ef9a9a; }
+        .log-box .info { color: #80cbc4; }
+
+        .footer { display: flex; justify-content: space-between; align-items: center; margin-top: 40px; padding: 20px 0 0 0; border-top: 1px solid var(--border); color: var(--text-header); font-size: 12px; }
+        .author-link { display: flex; align-items: center; gap: 8px; color: var(--text-main); text-decoration: none; transition: 0.2s; }
+        .author-name { font-family: 'Caveat', cursive; font-size: 20px; font-weight: 700; letter-spacing: 1px; color: var(--text-main); transition: 0.2s; }
+        .author-link:hover .author-name { color: var(--text-stage); }
+        .author-for { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; font-weight: normal; color: var(--text-header); margin-left: 2px; }
+        .version-text { font-family: monospace; color: var(--text-header); }
+
+        @media (max-width: 768px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>
+        NetPulse Analyzer
+        <span class="timer-badge" id="test-timer">⏱️ 00:00</span>
+    </h2>
+    
+    <div class="input-group">
+        <label for="target-input">
+            Адрес цели (домен или IP):
+            <span class="ip-resolve" id="resolved-ip">Определение IP...</span>
+        </label>
+        <input type="text" id="target-input" value="dodopizza.nau.team">
+    </div>
+
+    <div class="controls" id="controls-panel">
+        <select id="duration-select">
+            <option value="60">1 минута</option>
+            <option value="300">5 минут</option>
+            <option value="600">10 минут</option>
+            <option value="1800">30 минут</option>
+            <option value="3600">1 час</option>
+            <option value="0" selected>Бесконечно</option>
+        </select>
+        <button id="start-btn">Запустить мониторинг</button>
+        <button id="stop-btn">Остановить</button>
+        <button id="save-html-btn" title="Сохранить интерактивный отчет в HTML">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            Скачать отчет
+        </button>
+    </div>
+
+    <svg style="display: none;">
+        <symbol id="icon-eye" viewBox="0 0 24 24">
+            <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+        </symbol>
+    </svg>
+
+    <div class="stats-grid">
+        <div class="stat-card card-ping" id="card-0">
+            <div class="stat-label">
+                Текущий Ping
+                <span class="info-icon" data-tooltip="Время ответа сервера в миллисекундах (мс).">?</span>
+            </div>
+            <div id="curr-ping" class="stat-value">0 ms</div>
+            <div class="sub-stats">Мин: <span id="min-ping">0</span> | Макс: <span id="max-ping">0</span></div>
+            <svg class="eye-toggle" data-index="0" title="Показать/Скрыть на графике"><use href="#icon-eye"></use></svg>
+        </div>
+        
+        <div class="stat-card card-avg" id="card-1">
+            <div class="stat-label">
+                Средний Ping
+                <span class="info-icon" data-tooltip="Среднее время ответа за весь период теста.">?</span>
+            </div>
+            <div id="avg-ping" class="stat-value">0 ms</div>
+            <div class="sub-stats">Запросов: <span id="total-req">0</span></div>
+            <svg class="eye-toggle" data-index="1" title="Показать/Скрыть на графике"><use href="#icon-eye"></use></svg>
+        </div>
+        
+        <div class="stat-card card-jitter" id="card-2">
+            <div class="stat-label">
+                Jitter (Джиттер)
+                <span class="info-icon" data-tooltip="Колебания задержки. Идеал < 5мс.">?</span>
+            </div>
+            <div id="jitter" class="stat-value">0 ms</div>
+            <div class="sub-stats">Средний: <span id="avg-jitter">0</span> ms</div>
+            <svg class="eye-toggle" data-index="2" title="Показать/Скрыть на графике"><use href="#icon-eye"></use></svg>
+        </div>
+        
+        <div class="stat-card card-loss" id="card-3">
+            <div class="stat-label">
+                Потери (Loss)
+                <span class="info-icon" data-tooltip="Процент пакетов, которые не дошли до сервера.">?</span>
+            </div>
+            <div id="loss-rate" class="stat-value">0%</div>
+            <div class="sub-stats">Потеряно: <span id="loss-count">0</span> шт.</div>
+            <svg class="eye-toggle" data-index="3" title="Показать/Скрыть на графике"><use href="#icon-eye"></use></svg>
+        </div>
+    </div>
+
+    <div class="chart-wrapper">
+        <canvas id="pingChart"></canvas>
+    </div>
+
+    <div class="log-box" id="log">NetPulse готов. Ждем запуска...</div>
+
+    <div class="footer">
+        <a href="https://t.me/MrMails" target="_blank" class="author-link" title="Связаться с разработчиком">
+            <span class="author-name">by Mr. Mails</span>
+            <span class="author-for">for ITCS</span>
+        </a>
+        <div class="version-text">NetPulse v1.0.0</div>
+    </div>
+
+    <div id="saved-data-container" style="display: none;"></div>
+</div>
+
+<script>
+    const startBtn = document.getElementById('start-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    const saveBtn = document.getElementById('save-html-btn');
+    const durationSelect = document.getElementById('duration-select');
+    const targetInput = document.getElementById('target-input');
+    const logEl = document.getElementById('log');
+    const resolvedIpEl = document.getElementById('resolved-ip');
+    const timerEl = document.getElementById('test-timer');
+    const savedDataContainer = document.getElementById('saved-data-container');
+    
+    let pings = [];
+    let jitters = [];
+    let isRunning = false;
+    let forceStop = false;
+    let totalSent = 0;
+    let totalLoss = 0;
+    let pingChart = null;
+
+    function log(msg, type = 'success') {
+        const div = document.createElement('div');
+        if (type === 'error') div.className = 'err';
+        else if (type === 'info') div.className = 'info';
+        div.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        logEl.prepend(div);
+    }
+
+    async function resolveDNS(domain) {
+        domain = domain.replace(/^https?:\/\//, '').split('/')[0].split(':')[0]; 
+        if (/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(domain)) return domain;
+        try {
+            const response = await fetch(`https://dns.google/resolve?name=${domain}&type=A`);
+            const data = await response.json();
+            if (data.Answer && data.Answer.length > 0) {
+                const aRecord = data.Answer.find(record => record.type === 1);
+                return aRecord ? aRecord.data : data.Answer[0].data;
+            }
+        } catch (e) { log(`Ошибка DNS`, 'error'); }
+        return null;
+    }
+
+    function initChart() {
+        const ctx = document.getElementById('pingChart').getContext('2d');
+        if (pingChart) pingChart.destroy(); 
+        pingChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    { label: 'Ping', data: [], borderColor: '#e86100', backgroundColor: 'rgba(232, 97, 0, 0.05)', borderWidth: 2, yAxisID: 'y', tension: 0.1, pointRadius: 1, fill: true },
+                    { label: 'Avg', data: [], borderColor: '#0d6efd', borderWidth: 2, borderDash: [5, 5], yAxisID: 'y', tension: 0, pointRadius: 0 },
+                    { label: 'Jitter', data: [], borderColor: '#6f42c1', backgroundColor: 'rgba(111, 66, 193, 0.1)', borderWidth: 1.5, yAxisID: 'y', tension: 0.2, pointRadius: 0, fill: true },
+                    { label: 'Loss %', data: [], borderColor: '#dc3545', borderWidth: 2, yAxisID: 'y1', stepped: true }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, animation: false, interaction: { mode: 'index', intersect: false },
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { maxTicksLimit: 15 } },
+                    y: { type: 'linear', position: 'left', title: { display: true, text: 'ms' }, suggestedMax: 100 },
+                    y1: { type: 'linear', position: 'right', min: 0, max: 100, grid: { drawOnChartArea: false } }
+                }
+            }
+        });
+    }
+
+    document.querySelectorAll('.eye-toggle').forEach(eye => {
+        eye.onclick = (e) => {
+            const idx = e.currentTarget.dataset.index;
+            const isVis = pingChart.isDatasetVisible(idx);
+            isVis ? pingChart.hide(idx) : pingChart.show(idx);
+            e.currentTarget.classList.toggle('hidden', isVis);
+            document.getElementById(`card-${idx}`).classList.toggle('card-disabled', isVis);
+        };
+    });
+
+    function getFormattedUrl(input) {
+        let url = input.trim();
+        if (!url.startsWith('http://') && !url.startsWith('https://')) url = 'https://' + url;
+        const separator = url.includes('?') ? '&' : '?';
+        return `${url}${separator}t=${Date.now()}`;
+    }
+
+    function ping(url, ip) {
+        return new Promise((resolve) => {
+            const start = performance.now();
+            totalSent++;
+            const img = new Image();
+            let resolved = false;
+            
+            const timeout = setTimeout(() => {
+                if (resolved) return;
+                resolved = true; 
+                totalLoss++; 
+                updateStats(null); 
+                log(`[Таймаут] Пакет потерян (Loss)`, 'error');
+                resolve();
+            }, 3000);
+            
+            img.onload = img.onerror = () => {
+                if (resolved) return;
+                resolved = true; 
+                clearTimeout(timeout);
+                const duration = Math.round(performance.now() - start);
+                pings.push(duration); 
+                updateStats(duration); 
+                log(`Ответ от ${ip || url.split('?')[0]}: время=${duration}мс`);
+                resolve();
+            };
+            
+            img.src = getFormattedUrl(url);
+        });
+    }
+
+    function updateStats(current) {
+        document.getElementById('total-req').innerText = totalSent;
+        let avg = 0, currentJitter = 0;
+        if (pings.length > 0) {
+            avg = Math.round(pings.reduce((a, b) => a + b, 0) / pings.length);
+            document.getElementById('min-ping').innerText = Math.min(...pings);
+            document.getElementById('max-ping').innerText = Math.max(...pings);
+            document.getElementById('avg-ping').innerText = `${avg} ms`;
+        }
+        if (current !== null) {
+            document.getElementById('curr-ping').innerText = `${current} ms`;
+            if (pings.length > 1) {
+                currentJitter = Math.round(Math.abs(pings[pings.length-1] - pings[pings.length-2]));
+                jitters.push(currentJitter);
+                document.getElementById('jitter').innerText = `${currentJitter} ms`;
+                document.getElementById('avg-jitter').innerText = Math.round(jitters.reduce((a,b)=>a+b,0)/jitters.length);
+            }
+        }
+        const lossP = totalSent > 0 ? parseFloat(((totalLoss/totalSent)*100).toFixed(1)) : 0;
+        document.getElementById('loss-rate').innerText = `${lossP}%`;
+        document.getElementById('loss-count').innerText = totalLoss;
+
+        const time = new Date().toLocaleTimeString('ru-RU', { hour12: false });
+        pingChart.data.labels.push(time);
+        pingChart.data.datasets[0].data.push(current || 0);
+        pingChart.data.datasets[1].data.push(avg);
+        pingChart.data.datasets[2].data.push(currentJitter);
+        pingChart.data.datasets[3].data.push(lossP);
+        pingChart.update();
+    }
+
+    startBtn.onclick = async () => {
+        const input = targetInput.value.trim();
+        if (!input) return alert("Введите адрес!");
+        isRunning = true; forceStop = false;
+        startBtn.style.display = 'none'; stopBtn.style.display = 'block'; saveBtn.style.display = 'none';
+        durationSelect.disabled = targetInput.disabled = true;
+        timerEl.style.display = 'inline-block';
+        pings = []; jitters = []; totalSent = 0; totalLoss = 0; logEl.innerHTML = ''; initChart();
+        
+        resolvedIpEl.style.display = 'inline-block'; resolvedIpEl.innerText = "DNS...";
+        const ip = await resolveDNS(input);
+        resolvedIpEl.innerText = ip ? `IP: ${ip}` : "";
+
+        const maxSec = parseInt(durationSelect.value);
+        const start = Date.now();
+        while (!forceStop) {
+            const now = Date.now();
+            const elapsed = now - start;
+            const sec = Math.floor(elapsed/1000);
+            timerEl.innerText = `⏱️ ${String(Math.floor(sec/60)).padStart(2,'0')}:${String(sec%60).padStart(2,'0')}`;
+            if (maxSec > 0 && elapsed >= maxSec*1000) break;
+            
+            await ping(input, ip);
+            
+            if (!forceStop) await new Promise(r => setTimeout(r, Math.max(0, 1000 - (Date.now() - now))));
+        }
+        isRunning = false; startBtn.style.display = 'block'; stopBtn.style.display = 'none';
+        saveBtn.style.display = 'flex'; durationSelect.disabled = targetInput.disabled = false;
+    };
+
+    stopBtn.onclick = () => forceStop = true;
+
+    saveBtn.onclick = () => {
+        const html = document.documentElement.cloneNode(true);
+        html.querySelector('#controls-panel').style.display = 'none';
+        html.querySelector('#saved-data-container').textContent = JSON.stringify(pingChart.data);
+        const blob = new Blob(["<!DOCTYPE html>\n<html lang=\"ru\">" + html.innerHTML + "</html>"], { type: 'text/html' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `NetPulse_Report_${new Date().toISOString().slice(0,19)}.html`;
+        a.click();
+    };
+
+    window.onload = () => {
+        const data = savedDataContainer.textContent;
+        initChart();
+        if (data) {
+            pingChart.data = JSON.parse(data); pingChart.update();
+            document.getElementById('controls-panel').style.display = 'none';
+            timerEl.style.display = 'inline-block';
+        }
+    };
+</script>
+</body>
+</html>
