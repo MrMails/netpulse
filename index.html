@@ -127,7 +127,7 @@
         <div class="stat-card card-ping" id="card-0">
             <div class="stat-label">
                 Текущий Ping
-                <span class="info-icon" data-tooltip="Время ответа сервера в миллисекундах (мс).">?</span>
+                <span class="info-icon" data-tooltip="Время ответа сервера в миллисекундах (мс). Чем меньше, тем быстрее загружаются данные.">?</span>
             </div>
             <div id="curr-ping" class="stat-value">0 ms</div>
             <div class="sub-stats">Мин: <span id="min-ping">0</span> | Макс: <span id="max-ping">0</span></div>
@@ -137,7 +137,7 @@
         <div class="stat-card card-avg" id="card-1">
             <div class="stat-label">
                 Средний Ping
-                <span class="info-icon" data-tooltip="Среднее время ответа за весь период теста.">?</span>
+                <span class="info-icon" data-tooltip="Среднее время ответа за весь период теста. Показывает общую картину качества линии связи.">?</span>
             </div>
             <div id="avg-ping" class="stat-value">0 ms</div>
             <div class="sub-stats">Запросов: <span id="total-req">0</span></div>
@@ -147,7 +147,7 @@
         <div class="stat-card card-jitter" id="card-2">
             <div class="stat-label">
                 Jitter (Джиттер)
-                <span class="info-icon" data-tooltip="Колебания задержки. Идеал < 5мс.">?</span>
+                <span class="info-icon" data-tooltip="Колебания задержки. Если Jitter высокий, пинг 'скачет' — это вызывает лаги в играх и прерывания звука при звонках. Идеал < 5мс.">?</span>
             </div>
             <div id="jitter" class="stat-value">0 ms</div>
             <div class="sub-stats">Средний: <span id="avg-jitter">0</span> ms</div>
@@ -157,7 +157,7 @@
         <div class="stat-card card-loss" id="card-3">
             <div class="stat-label">
                 Потери (Loss)
-                <span class="info-icon" data-tooltip="Процент пакетов, которые не дошли до сервера.">?</span>
+                <span class="info-icon" data-tooltip="Процент пакетов, которые не дошли до сервера. Даже 1-2% потерь делают интернет нестабильным.">?</span>
             </div>
             <div id="loss-rate" class="stat-value">0%</div>
             <div class="sub-stats">Потеряно: <span id="loss-count">0</span> шт.</div>
