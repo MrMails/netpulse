@@ -82,6 +82,13 @@
         .version-text { font-family: monospace; color: var(--text-header); }
 
         @media (max-width: 768px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+        
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); z-index: 9999; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s ease; }
+        .modal-overlay.show { display: flex; opacity: 1; }
+        .modal-content { background: var(--card-bg); padding: 30px; border-radius: 12px; max-width: 600px; width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; transform: translateY(-20px); transition: transform 0.3s ease; color: var(--text-main); font-size: 14px; line-height: 1.6; }
+        .modal-overlay.show .modal-content { transform: translateY(0); }
+        .modal-close { position: absolute; top: 15px; right: 20px; font-size: 24px; color: #888; cursor: pointer; transition: 0.2s; }
+        .modal-close:hover { color: #333; }
     </style>
 </head>
 <body>
@@ -171,12 +178,25 @@
 
     <div class="log-box" id="log">NetPulse готов. Ждем запуска...</div>
 
-    <div class="footer">
+<div class="footer">
         <a href="https://t.me/MrMails" target="_blank" class="author-link" title="Связаться с разработчиком">
             <span class="author-name">by Mr. Mails</span>
             <span class="author-for">for ITCS</span>
         </a>
-        <div class="version-text">NetPulse v1.0.0</div>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <a href="#" id="privacy-link" style="color: var(--text-header); text-decoration: underline; font-size: 12px; cursor: pointer;">Terms & Privacy</a>
+            <div class="version-text">NetPulse v1.0.0</div>
+        </div>
+    </div>
+
+    <div id="privacy-modal" class="modal-overlay">
+        <div class="modal-content">
+            <span class="modal-close" id="modal-close">&times;</span>
+            <h3 style="margin-top:0; border-bottom:1px solid var(--border); padding-bottom:10px;">Политика использования</h3>
+            <p><strong>1. Конфиденциальность:</strong> NetPulse работает исключительно в вашем браузере. Мы не собираем, не храним и не передаем ваши персональные данные. Все сетевые тесты (ping) и DNS-запросы выполняются напрямую с вашего устройства. Хостинг-провайдер (GitHub) может собирать стандартные веб-логи в соответствии со своей политикой.</p>
+            <p><strong>2. Отказ от ответственности:</strong> Инструмент предоставляется по принципу «как есть» (AS IS). Разработчик не дает гарантий абсолютной точности метрик, так как они ограничены архитектурой веб-браузеров. Разработчик не несет ответственности за любые убытки, возникшие в результате использования данного инструмента.</p>
+            <p><strong>3. Добросовестное использование:</strong> Вы обязуетесь использовать NetPulse только для диагностики сетей и серверов, к которым у вас есть легальный доступ. Категорически запрещается использовать инструмент для создания преднамеренной нагрузки (DDoS) на сторонние ресурсы.</p>
+        </div>
     </div>
 
     <div id="saved-data-container" style="display: none;"></div>
@@ -380,6 +400,16 @@
             timerEl.style.display = 'inline-block';
         }
     };
+
+    const privacyLink = document.getElementById('privacy-link');
+    const privacyModal = document.getElementById('privacy-modal');
+    const modalClose = document.getElementById('modal-close');
+
+    if (privacyLink && privacyModal && modalClose) {
+        privacyLink.onclick = (e) => { e.preventDefault(); privacyModal.classList.add('show'); };
+        modalClose.onclick = () => { privacyModal.classList.remove('show'); };
+        privacyModal.onclick = (e) => { if(e.target === privacyModal) privacyModal.classList.remove('show'); };
+    }
 </script>
 </body>
 </html>
